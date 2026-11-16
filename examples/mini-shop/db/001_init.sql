@@ -1,0 +1,13 @@
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL
+);
+
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  items JSONB NOT NULL,
+  total NUMERIC(10, 2) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
