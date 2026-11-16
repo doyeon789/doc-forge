@@ -13,6 +13,8 @@ docs/doc-forge/
 
 Other languages use their own top-level doc names (see the `--lang` table below); the folder names stay the same.
 
+**See a real result:** [`examples/mini-shop-output/00_overview.md`](examples/mini-shop-output/00_overview.md) is the unedited output of `/doc-forge:docs-all` on [`examples/mini-shop`](examples/mini-shop) (citations are relative to that folder).
+
 ## What makes it different
 
 - **Reads everything.** A script builds the repo's file list, and the check fails if even one file has no doc. It does not "summarize a few key files".
