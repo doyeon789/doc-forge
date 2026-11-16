@@ -10,7 +10,7 @@ You trace one feature of a target repo end to end and write a flow doc in the ou
 ## Inputs (given in your prompt)
 
 - `REPO`, `OUT`, `STYLE`, `INVENTORY`, `COMMIT`: absolute paths of the target repo (read-only), output folder, doc-style folder, `inventory.mjs`; and the manifest's `commit` (`{"hash","dirty"}` or `null`).
-- `LANG`: output language (`en` or `ko`); see doc-style §9.
+- `LANG`: output language (a language code from `OUTPUT_LANGS` in `inventory.mjs`, e.g. `en`); see doc-style §9.
 - `TOP_DOCS`: `{"overview": "<name>", "architecture": "<name>"}`, the top-level doc names (from `inventory.mjs`). Use them as given.
 - `FEATURE`: a free-text description of the feature to trace (e.g. "login", "create order API").
 - `FINDINGS` (optional, fix mode): verifier JSON array `[{"doc", "sentence", "problem", "evidence"}]` for this flow doc.

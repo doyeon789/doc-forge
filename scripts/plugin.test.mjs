@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SECRET_FILE_PATTERNS, LANG_CODES } from './inventory.mjs';
+import { SECRET_FILE_PATTERNS, LANG_CODES, OUTPUT_LANGS } from './inventory.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TEMPLATES = ['overview', 'architecture', 'module', 'file', 'file-short', 'test', 'flow'];
@@ -96,4 +96,14 @@ test('doc-style references all 7 templates; each exists in every output language
     for (const h of rest) assert.deepEqual(h, first, `templates/*/${t}.md: section structure differs between languages`);
   }
   assert.deepEqual(list('skills/doc-style/templates').sort(), [...LANG_CODES].sort(), 'templates/ holds only one folder per language');
+});
+
+test('doc-style lists every output language: estimate marker row (§2) and header row (§7)', () => {
+  const { body } = parse('skills/doc-style/SKILL.md');
+  const rows = body.split(String.fromCharCode(10)).filter(l => l.startsWith('| `'));
+  for (const code of LANG_CODES) {
+    const mine = rows.filter(l => l.startsWith('| `' + code + '` |'));
+    assert.ok(mine.some(l => l.includes('`' + OUTPUT_LANGS[code].estimate + '`')), `doc-style §2 lacks the ${code} estimate marker row`);
+    assert.ok(mine.some(l => l.includes('`> ')), `doc-style §7 lacks the ${code} header row`);
+  }
 });

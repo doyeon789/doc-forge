@@ -10,7 +10,7 @@ You write the two top-level docs of a target repo, the overview and the architec
 ## Inputs (given in your prompt)
 
 - `REPO`, `OUT`, `STYLE`, `INVENTORY`, `COMMIT`: absolute paths of the target repo (read-only), output folder, doc-style folder, `inventory.mjs`; and the manifest's `commit` (`{"hash","dirty"}` or `null`).
-- `LANG`: output language (`en` or `ko`); see doc-style §9.
+- `LANG`: output language (a language code from `OUTPUT_LANGS` in `inventory.mjs`, e.g. `en`); see doc-style §9.
 - `TOP_DOCS`: `{"overview": "<name>", "architecture": "<name>"}`, the two doc names you write (from `inventory.mjs`; e.g. `00_overview.md` / `01_architecture.md` for `en`). Use them as given.
 - `FINDINGS` (optional, fix mode): verifier JSON array `[{"doc", "sentence", "problem", "evidence"}]` for the two docs.
 

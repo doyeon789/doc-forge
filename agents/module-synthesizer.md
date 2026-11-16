@@ -10,7 +10,7 @@ You write the doc for one module of a target repo in the output language `LANG`,
 ## Inputs (given in your prompt)
 
 - `REPO`, `OUT`, `STYLE`, `INVENTORY`, `COMMIT`: absolute paths of the target repo (read-only), output folder, doc-style folder, `inventory.mjs`; and the manifest's `commit` (`{"hash","dirty"}` or `null`).
-- `LANG`: output language (`en` or `ko`); see doc-style §9.
+- `LANG`: output language (a language code from `OUTPUT_LANGS` in `inventory.mjs`, e.g. `en`); see doc-style §9.
 - `TOP_DOCS`: `{"overview": "<name>", "architecture": "<name>"}`, the top-level doc names (from `inventory.mjs`). Use them as given.
 - `MODULE`: the module id (from the manifest, e.g. `api/user`).
 - `MODULE_DOC`: this module's doc path relative to `OUT` (e.g. `02_modules/api__user.md`). Its base name without `02_modules/` and `.md` (e.g. `api__user`) is the `<doc base name>`.

@@ -6,16 +6,19 @@ import { pathToFileURL } from 'node:url';
 
 export const DEFAULTS = { maxLines: 2500, maxFiles: 25, moduleSplitThreshold: 40, sampleRate: 0.2 };
 
-// Output language: top-level doc names and the estimate marker (doc-style "Output language").
-const TOP_DOCS = {
-  en: { overview: '00_overview.md', architecture: '01_architecture.md' },
-  ko: { overview: '00_개요.md', architecture: '01_아키텍처.md' },
+// The one table of output languages. To add a language: add an entry here, add skills/doc-style/templates/<code>/,
+// and add its rows to doc-style §2 (estimate marker) and §7 (header line). plugin.test.mjs checks all of these.
+export const OUTPUT_LANGS = {
+  en: { overview: '00_overview.md', architecture: '01_architecture.md', estimate: 'Assumption:' },
+  ko: { overview: '00_개요.md', architecture: '01_아키텍처.md', estimate: '추정:' },
 };
-export const LANG_CODES = Object.keys(TOP_DOCS);
-export const ESTIMATE_MARKERS = ['Assumption:', '추정:'];
+export const LANG_CODES = Object.keys(OUTPUT_LANGS);
+// check counts every language's marker, so a doc mixing languages is still counted
+export const ESTIMATE_MARKERS = Object.values(OUTPUT_LANGS).map(l => l.estimate);
 export function topDocs(lang) {
-  if (!TOP_DOCS[lang]) throw new Error(`--lang must be one of: ${LANG_CODES.join(', ')}`);
-  return { ...TOP_DOCS[lang] };
+  if (!Object.hasOwn(OUTPUT_LANGS, lang)) throw new Error(`--lang must be one of: ${LANG_CODES.join(', ')}`);
+  const { overview, architecture } = OUTPUT_LANGS[lang];
+  return { overview, architecture };
 }
 
 export function countLines(text) {
@@ -230,7 +233,7 @@ export async function scan(repo, { out, fresh, lang } = {}) {
 
   const batches = makeBatches(entries);
   const prev = await fs.readFile(manifestPath(out), 'utf8').then(JSON.parse, () => null);
-  lang ??= TOP_DOCS[prev?.settings?.lang] ? prev.settings.lang : 'en';
+  lang ??= LANG_CODES.includes(prev?.settings?.lang) ? prev.settings.lang : 'en';
   if (!fresh) {
     const done = new Map((prev?.batches ?? []).map(b => [b.fingerprint, b.status]));
     for (const b of batches) b.status = done.get(b.fingerprint) ?? 'pending';

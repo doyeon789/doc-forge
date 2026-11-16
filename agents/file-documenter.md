@@ -14,7 +14,7 @@ You write the per-file docs for one batch of a target repo, in the output langua
 - `STYLE`: absolute path of the doc-style folder (`SKILL.md` + `templates/<LANG>/`).
 - `INVENTORY`: absolute path of `inventory.mjs`.
 - `COMMIT`: the manifest's `commit` value: `{"hash": "...", "dirty": true|false}` or `null`.
-- `LANG`: output language (`en` or `ko`); see doc-style §9.
+- `LANG`: output language (a language code from `OUTPUT_LANGS` in `inventory.mjs`, e.g. `en`); see doc-style §9.
 - `TOP_DOCS`: `{"overview": "<name>", "architecture": "<name>"}`, the top-level doc names (from `inventory.mjs`). Use them as given.
 - `BATCH`: the JSON printed by `inventory.mjs batch`: `{"id": N, "module": "<module id>", "lang", "topDocs", "moduleDoc": "02_modules/<...>.md", "large": true|false, "files": [{"path", "doc", "up", "kind", "lines", "secret"}]}`. `doc` is the file's own doc path (relative to `OUT`); `up` is the prefix from that doc's folder to `OUT` (e.g. `../../..`). `lang`/`topDocs` equal `LANG`/`TOP_DOCS`.
 - `FINDINGS` (optional, fix mode): a verifier JSON array `[{"doc", "sentence", "problem", "evidence"}]` for docs of this batch.

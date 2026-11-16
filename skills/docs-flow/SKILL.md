@@ -1,7 +1,7 @@
 ---
 name: docs-flow
-description: Writes a flow doc (04_flows/<feature>.md, with a Mermaid sequence diagram) that follows one feature, such as login or order creation, from its entry point through the call chain step by step; in English by default or Korean with --lang ko. Use for requests like "document this feature's flow", "explain how the login flow works", "trace this feature", "how is this request handled".
-argument-hint: "\"<feature description>\" [--lang en|ko] [--out <dir>]"
+description: Writes a flow doc (04_flows/<feature>.md, with a Mermaid sequence diagram) that follows one feature, such as login or order creation, from its entry point through the call chain step by step; in English by default or in another supported language with --lang <code>. Use for requests like "document this feature's flow", "explain how the login flow works", "trace this feature", "how is this request handled".
+argument-hint: "\"<feature description>\" [--lang <code>] [--out <dir>]"
 ---
 
 # /doc-forge:docs-flow — document a feature flow
@@ -31,7 +31,7 @@ TOP_DOCS: <TOP_DOCS>
 
 ## 1. Paths and feature
 
-Take `--lang <en|ko>` and `--out <dir>` out of the arguments; everything else (without surrounding quotes) = `FEATURE`. If it is empty, ask the user which feature to trace and stop.
+Take `--lang <code>` and `--out <dir>` out of the arguments; everything else (without surrounding quotes) = `FEATURE`. If it is empty, ask the user which feature to trace and stop.
 
 If `--out <dir>` is present, pass its value as the last argument of the command below (otherwise an empty string `""`). It must be the same value given to `docs-all` to use the same output folder. Use the printed `REPO=` and `OUT=` values as they are in every later command and prompt.
 
@@ -41,10 +41,10 @@ node -e 'const p=require("path"),f=s=>s.split(p.sep).join("/");let r;try{r=requi
 
 ## 2. Manifest, COMMIT, LANG, TOP_DOCS
 
-Check with Glob whether `<OUT>/.doc-forge/manifest.json` exists. Scan only if it does not exist, or if the user gave `--lang` (add `--lang <en|ko>` only then):
+Check with Glob whether `<OUT>/.doc-forge/manifest.json` exists. Scan only if it does not exist, or if the user gave `--lang` (add `--lang <code>` only then):
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" [--lang <en|ko>] >/dev/null
+node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" [--lang <code>] >/dev/null
 ```
 
 Then:

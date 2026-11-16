@@ -1,6 +1,6 @@
 # doc-forge
 
-A [Claude Code](https://claude.com/claude-code) plugin that reads an undocumented repo **from start to finish** and writes docs a newcomer can understand in one pass. Docs are written in English by default, or in Korean with `--lang ko`.
+A [Claude Code](https://claude.com/claude-code) plugin that reads an undocumented repo **from start to finish** and writes docs a newcomer can understand in one pass. Docs are written in English by default, or in another supported language with `--lang <code>` (currently `en` and `ko`).
 
 ```
 docs/doc-forge/
@@ -11,7 +11,7 @@ docs/doc-forge/
 └─ 04_flows/             one feature followed from its entry point
 ```
 
-With `--lang ko` the top-level docs are `00_개요.md` and `01_아키텍처.md`; the folder names stay the same.
+Other languages use their own top-level doc names (see the `--lang` table below); the folder names stay the same.
 
 ## What makes it different
 
@@ -49,7 +49,7 @@ Start Claude Code in the repo you want to document:
 /doc-forge:docs-all
 ```
 
-The result goes to `docs/doc-forge/`. Start reading at `00_overview.md`. For Korean docs:
+The result goes to `docs/doc-forge/`. Start reading at `00_overview.md`. For docs in another language, e.g. Korean:
 
 ```
 /doc-forge:docs-all --lang ko
@@ -77,12 +77,12 @@ claude --plugin-dir "<path to doc-forge>"
 
 | Command | What it does |
 |---|---|
-| `/doc-forge:docs-all [--lang en\|ko] [--fresh] [--out <dir>]` | Documents the whole repo (overview, architecture, modules, files), then verifies |
-| `/doc-forge:docs-file <file path> [--lang en\|ko] [--out <dir>]` | Creates or regenerates the doc of one file |
-| `/doc-forge:docs-module <module or folder> [--lang en\|ko] [--out <dir>]` | Creates the file docs and the module doc of one module |
-| `/doc-forge:docs-flow "<feature description>" [--lang en\|ko] [--out <dir>]` | Creates the flow doc of one feature (e.g. "create order"), with a Mermaid sequence diagram |
+| `/doc-forge:docs-all [--lang <code>] [--fresh] [--out <dir>]` | Documents the whole repo (overview, architecture, modules, files), then verifies |
+| `/doc-forge:docs-file <file path> [--lang <code>] [--out <dir>]` | Creates or regenerates the doc of one file |
+| `/doc-forge:docs-module <module or folder> [--lang <code>] [--out <dir>]` | Creates the file docs and the module doc of one module |
+| `/doc-forge:docs-flow "<feature description>" [--lang <code>] [--out <dir>]` | Creates the flow doc of one feature (e.g. "create order"), with a Mermaid sequence diagram |
 
-- `--lang en|ko`: output language (default `en`). The choice is stored in the manifest, so later commands without `--lang` keep using it.
+- `--lang <code>`: output language (default `en`; supported codes are listed below). The choice is stored in the manifest, so later commands without `--lang` keep using it.
 
   | `--lang` | Top-level docs | Estimate marker |
   |---|---|---|
@@ -92,6 +92,7 @@ claude --plugin-dir "<path to doc-forge>"
   To switch the language of existing docs, run `/doc-forge:docs-all --lang <new> --fresh`: `--fresh` makes every batch run again. Top-level docs of the old language are not deleted; remove them yourself.
 - `--fresh`: drop the previous progress and start over (keeps the stored language unless `--lang` is given).
 - `--out <dir>`: output folder (default `<repo root>/docs/doc-forge`). Other commands must get the same value as `docs-all` to use the same output folder.
+- **Adding a language**: add an entry to `OUTPUT_LANGS` in `scripts/inventory.mjs` (code, top-level doc names, estimate marker), add `skills/doc-style/templates/<code>/` with the same 7 templates and sections, and add the language's rows to the estimate-marker table (§2) and header-line table (§7) of `skills/doc-style/SKILL.md`. `node --test` fails until all of these exist. Skills and agents need no change.
 - If there are more than 20 batches to process, it shows the size first and asks whether to proceed. Large repos take a lot of time and tokens.
 
 ## How it works
@@ -109,7 +110,7 @@ claude --plugin-dir "<path to doc-forge>"
 | Part | Role |
 |---|---|
 | `skills/docs-*` | The commands users run. They conduct the steps |
-| `skills/doc-style` | Writing rules and templates (`templates/en/`, `templates/ko/`) that every agent follows |
+| `skills/doc-style` | Writing rules and per-language templates (`templates/<code>/`) that every agent follows |
 | `agents/` | Agents that write file, module, overview and flow docs, and the review agent |
 | `scripts/inventory.mjs` | Mechanical work: file list, batching, output names per language, citation/link/secret checks |
 

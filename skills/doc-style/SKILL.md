@@ -7,8 +7,8 @@ user-invocable: false
 # doc-style: doc-forge writing rules
 
 Before writing a doc, read this whole file and the template chosen under "Template selection" below.
-Templates live in `templates/<LANG>/` next to this file (`templates/en/`, `templates/ko/`; same file names and section structure).
-Below, `<INVENTORY>` is the absolute path of `inventory.mjs` that the conducting skill passed in your prompt, `<REPO>` is the absolute path of the target repo, `<LANG>` is the output language (`en` or `ko`) and `<TOP_DOCS>` is the `{"overview", "architecture"}` object of top-level doc names, both from your prompt (see §9).
+Templates live in `templates/<LANG>/` next to this file (one folder per language code, e.g. `templates/en/`; same file names and section structure in every language).
+Below, `<INVENTORY>` is the absolute path of `inventory.mjs` that the conducting skill passed in your prompt, `<REPO>` is the absolute path of the target repo, `<LANG>` is the output language code and `<TOP_DOCS>` is the `{"overview", "architecture"}` object of top-level doc names, both from your prompt (see §9).
 
 The reader is a newcomer seeing this repo for the first time. The goal is not "the code was read" but "the structure and the reasons are understood".
 
@@ -216,7 +216,7 @@ In a template, `<...>` marks a slot to fill (`<TOP_DOCS.overview>` / `<TOP_DOCS.
 |---|---|
 | File doc | `03_files/<repo path>.md`. A **directory** segment starting with `.` becomes `_dot_<rest>` (file names stay). E.g. `src/a/B.java` → `03_files/src/a/B.java.md`, `.mvn/wrapper/w.properties` → `03_files/_dot_mvn/wrapper/w.properties.md`, `.env` → `03_files/.env.md` |
 | Module doc | `02_modules/<module id, each segment starting with . turned into _dot_, joined with __>.md` (e.g. `api/user` → `02_modules/api__user.md`, `.devcontainer` → `02_modules/_dot_devcontainer.md`) |
-| Overview, architecture | `<TOP_DOCS.overview>`, `<TOP_DOCS.architecture>`: `00_overview.md`, `01_architecture.md` for `en`; the `ko` names for `ko`. Always take them from `TOP_DOCS` (they come from `inventory.mjs`); never type them yourself |
+| Overview, architecture | `<TOP_DOCS.overview>`, `<TOP_DOCS.architecture>`: e.g. `00_overview.md`, `01_architecture.md` for `en`; each language has its own names in `OUTPUT_LANGS`. Always take them from `TOP_DOCS` (they come from `inventory.mjs`); never type them yourself |
 | Flow doc | `04_flows/<feature name>.md` |
 
 ### Base commit in the header
@@ -272,9 +272,9 @@ When the Connections section mentions another file, link to that file's doc and 
 
 ## 9. Output language
 
-`LANG` (`en` or `ko`, default `en`) comes from the manifest's `settings.lang` and is passed in your prompt.
+`LANG` (a key of `OUTPUT_LANGS` in `inventory.mjs`, default `en`) comes from the manifest's `settings.lang` and is passed in your prompt.
 - Write all prose, headings, link text, Mermaid labels, "none" placeholders and the estimate marker (§2) in `LANG`. Use the header line of §7 for `LANG`.
-- Use the templates in `templates/<LANG>/`. This file refers to their sections by the English (`en`) heading; the `ko` template has the same section at the same position.
+- Use the templates in `templates/<LANG>/`. This file refers to their sections by the English (`en`) heading; every other language's template has the same section at the same position.
 - Code identifiers (class, function, variable and config key names), file paths and citations stay verbatim, in backticks.
 - Top-level doc names come from `TOP_DOCS`; folder names `02_modules/`, `03_files/`, `04_flows/` are the same in every language. A flow doc's file name (`04_flows/<feature name>.md`) is written in `LANG`.
 

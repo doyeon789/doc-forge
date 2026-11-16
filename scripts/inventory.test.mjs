@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { countLines, classify, listFiles, assignModules, moduleDocPath, fileDocPath, makeBatches, scan, setStatus, extractKeys, check, sample, prune, topDocs } from './inventory.mjs';
+import { countLines, classify, listFiles, assignModules, moduleDocPath, fileDocPath, makeBatches, scan, setStatus, extractKeys, check, sample, prune, topDocs, OUTPUT_LANGS, LANG_CODES, ESTIMATE_MARKERS } from './inventory.mjs';
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 
@@ -484,6 +484,16 @@ test('CLI link prints the relative link between two OUT-relative docs', async ()
   assert.deepEqual((await check(repo, { only: ['02_modules/a.md'] })).brokenLinks, []);
 });
 
+test('OUTPUT_LANGS is the one language table: codes, names and estimate markers derive from it', () => {
+  assert.deepEqual(LANG_CODES, Object.keys(OUTPUT_LANGS));
+  assert.deepEqual(ESTIMATE_MARKERS, Object.values(OUTPUT_LANGS).map(l => l.estimate));
+  for (const code of LANG_CODES) {
+    const l = OUTPUT_LANGS[code];
+    assert.ok(l.estimate.endsWith(':'), `${code}: estimate marker ends with ':'`);
+    assert.deepEqual(topDocs(code), { overview: l.overview, architecture: l.architecture });
+    assert.match(l.overview, /^00_.+\.md$/); assert.match(l.architecture, /^01_.+\.md$/);
+  }
+});
 test('topDocs: top-level doc names per language', () => {
   assert.deepEqual(topDocs('en'), { overview: '00_overview.md', architecture: '01_architecture.md' });
   assert.deepEqual(topDocs('ko'), { overview: '00_개요.md', architecture: '01_아키텍처.md' });

@@ -1,7 +1,7 @@
 ---
 name: docs-all
-description: Reads an undocumented repo end to end and writes onboarding docs for newcomers (overview, architecture, module and file docs) into docs/doc-forge/, in English by default or Korean with --lang ko. Use for requests like "document this repo", "generate docs for the whole repo", "write onboarding docs for this project". Resumes an interrupted run.
-argument-hint: "[--lang en|ko] [--fresh] [--out <dir>]"
+description: Reads an undocumented repo end to end and writes onboarding docs for newcomers (overview, architecture, module and file docs) into docs/doc-forge/, in English by default or in another supported language with --lang <code>. Use for requests like "document this repo", "generate docs for the whole repo", "write onboarding docs for this project". Resumes an interrupted run.
+argument-hint: "[--lang <code>] [--fresh] [--out <dir>]"
 ---
 
 # /doc-forge:docs-all — document the whole repo
@@ -33,11 +33,11 @@ LANG: <LANG>
 TOP_DOCS: <TOP_DOCS>
 ```
 
-`<COMMIT>`, `<LANG>` and `<TOP_DOCS>` are the `commit`, `lang` and `topDocs` values of the step 3 summary, as JSON/text exactly as printed (`commit` is `{"hash":"…","dirty":false}` or `null`; `lang` is `en` or `ko`; `topDocs` is `{"overview":"…","architecture":"…"}`). Below, `<OVERVIEW>` and `<ARCHITECTURE>` mean `topDocs.overview` and `topDocs.architecture`; never type these names yourself.
+`<COMMIT>`, `<LANG>` and `<TOP_DOCS>` are the `commit`, `lang` and `topDocs` values of the step 3 summary, as JSON/text exactly as printed (`commit` is `{"hash":"…","dirty":false}` or `null`; `lang` is a language code such as `en`; `topDocs` is `{"overview":"…","architecture":"…"}`). Below, `<OVERVIEW>` and `<ARCHITECTURE>` mean `topDocs.overview` and `topDocs.architecture`; never type these names yourself.
 
 ## 1. Resolve paths
 
-Read `--lang <en|ko>`, `--fresh` and `--out <dir>` from the arguments. Run the following (if there is no `--out`, pass an empty string `""` as the last argument):
+Read `--lang <code>`, `--fresh` and `--out <dir>` from the arguments. Run the following (if there is no `--out`, pass an empty string `""` as the last argument):
 
 ```bash
 node -e 'const p=require("path"),f=s=>s.split(p.sep).join("/");let r;try{r=require("child_process").execFileSync("git",["rev-parse","--show-toplevel"],{stdio:["ignore","pipe","ignore"]}).toString().trim()}catch{r=process.cwd()}r=p.resolve(r);console.log("REPO="+f(r)+"\nOUT="+f(process.argv[1]?p.resolve(process.argv[1]):p.join(r,"docs","doc-forge")))' "<--out value or empty string>"
@@ -48,7 +48,7 @@ Use the printed `REPO=` and `OUT=` values (absolute paths) as they are in every 
 ## 2. scan
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" [--lang <en|ko>] [--fresh] >/dev/null
+node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" [--lang <code>] [--fresh] >/dev/null
 ```
 
 Add `--lang` and `--fresh` only when the user gave them. Without `--lang`, scan keeps the language of the previous run (default `en`). If scan fails, show its stderr and stop.

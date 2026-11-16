@@ -1,7 +1,7 @@
 ---
 name: docs-module
-description: Creates or regenerates the file docs and the module doc (02_modules) of one module (package or folder), in English by default or Korean with --lang ko. Use for requests like "document this module", "document this folder", "write docs for this package".
-argument-hint: "<module id | folder path> [--lang en|ko] [--out <dir>]"
+description: Creates or regenerates the file docs and the module doc (02_modules) of one module (package or folder), in English by default or in another supported language with --lang <code>. Use for requests like "document this module", "document this folder", "write docs for this package".
+argument-hint: "<module id | folder path> [--lang <code>] [--out <dir>]"
 ---
 
 # /doc-forge:docs-module — document one module
@@ -36,7 +36,7 @@ TOP_DOCS: <TOP_DOCS>
 
 Argument = a module id or folder path (`<TARGET>`). If missing, ask the user and stop.
 
-Take `--lang <en|ko>` out of the arguments if present. If `--out <dir>` is present, take it out and pass its value as the last argument of the command below (otherwise an empty string `""`). It must be the same value given to `docs-all` to use the same output folder. Use the printed `REPO=` and `OUT=` values as they are in every later command and prompt.
+Take `--lang <code>` out of the arguments if present. If `--out <dir>` is present, take it out and pass its value as the last argument of the command below (otherwise an empty string `""`). It must be the same value given to `docs-all` to use the same output folder. Use the printed `REPO=` and `OUT=` values as they are in every later command and prompt.
 
 ```bash
 node -e 'const p=require("path"),f=s=>s.split(p.sep).join("/");let r;try{r=require("child_process").execFileSync("git",["rev-parse","--show-toplevel"],{stdio:["ignore","pipe","ignore"]}).toString().trim()}catch{r=process.cwd()}r=p.resolve(r);console.log("REPO="+f(r)+"\nOUT="+f(process.argv[1]?p.resolve(process.argv[1]):p.join(r,"docs","doc-forge")))' "<--out value or empty string>"
@@ -44,10 +44,10 @@ node -e 'const p=require("path"),f=s=>s.split(p.sep).join("/");let r;try{r=requi
 
 ## 2. scan, COMMIT, LANG, TOP_DOCS
 
-Add `--lang <en|ko>` only when the user gave it (without it, scan keeps the previous run's language, default `en`):
+Add `--lang <code>` only when the user gave it (without it, scan keeps the previous run's language, default `en`):
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" [--lang <en|ko>] >/dev/null && node -e 'const m=require(process.argv[1]);console.log(JSON.stringify({commit:m.commit,lang:m.settings.lang,topDocs:m.topDocs}))' "<OUT>/.doc-forge/manifest.json"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" [--lang <code>] >/dev/null && node -e 'const m=require(process.argv[1]);console.log(JSON.stringify({commit:m.commit,lang:m.settings.lang,topDocs:m.topDocs}))' "<OUT>/.doc-forge/manifest.json"
 ```
 
 ## 3. Find the module (the command below is called `module lookup`)
