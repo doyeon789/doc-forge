@@ -1,24 +1,24 @@
 ---
 name: docs-module
-description: module(패키지·폴더) 하나의 파일 문서들과 module 문서(02_modules)를 만들거나 다시 만든다. "이 모듈 문서화", "이 폴더 문서화", "이 패키지 문서 만들어 줘", "document this module" 같은 요청에 사용.
-argument-hint: "<module id | folder path> [--out <dir>]"
+description: Creates or regenerates the file docs and the module doc (02_modules) of one module (package or folder), in English by default or Korean with --lang ko. Use for requests like "document this module", "document this folder", "write docs for this package".
+argument-hint: "<module id | folder path> [--lang en|ko] [--out <dir>]"
 ---
 
-# /doc-forge:docs-module — module 하나 문서화
+# /doc-forge:docs-module — document one module
 
-메인 대화에서 실행하는 지휘 절차다. 문서는 직접 쓰지 않는다. 사용자에게 하는 말은 한국어로 한다.
+A conducting procedure that runs in the main conversation. It never writes docs itself. Talk to the user in the language they are using.
 
-## 고정 규칙
+## Fixed rules
 
-- 모든 경로는 큰따옴표로 감싼다. `<REPO>` 등 꺾쇠 자리는 실제 값으로 바꾼다.
-- **Agent 호출은 한 메시지에 최대 5개**, 그 wave가 끝난 뒤 다음 wave.
-- `status` 갱신은 한 번에 Bash 하나로, 병렬로 보내지 않는다 (여러 개는 한 Bash 안에서 `;`로 이어 순서대로).
-- `scan` 출력은 화면에 찍지 않는다 (`>/dev/null`).
-- 이 명령은 그 module의 파일 문서, module 문서, 그 batch 요약·module 요약만 쓴다. 개요·아키텍처·흐름 문서는 건드리지 않는다.
-- 비밀 값은 어떤 프롬프트·보고에도 넣지 않는다.
-- `inventory.mjs` 종료 코드: 0 성공, `check`는 문제 있으면 1 (JSON 유효), 2는 사용법 오류(stderr).
+- Wrap every path in double quotes. Replace angle-bracket slots such as `<REPO>` with the real values.
+- **At most 5 Agent calls per message**; send the next wave only after the current wave has finished.
+- Update `status` with one Bash call at a time, never in parallel (several may be chained with `;` in one Bash call).
+- Never print the `scan` output (`>/dev/null`).
+- This command writes only that module's file docs, its module doc, and its batch and module summaries. It never touches the overview, architecture or flow docs.
+- Never put secret values into any prompt or report.
+- `inventory.mjs` exit codes: 0 success; `check` exits 1 when it finds problems (JSON still valid); 2 is a usage error (stderr).
 
-## Agent 공통 입력 블록
+## Common agent input block
 
 ```
 REPO: <REPO>
@@ -26,94 +26,98 @@ OUT: <OUT>
 STYLE: ${CLAUDE_PLUGIN_ROOT}/skills/doc-style
 INVENTORY: ${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs
 COMMIT: <COMMIT>
+LANG: <LANG>
+TOP_DOCS: <TOP_DOCS>
 ```
 
-`<COMMIT>`은 manifest의 `commit` 값을 JSON 그대로 (`null` 가능).
+`<COMMIT>`, `<LANG>`, `<TOP_DOCS>` are the `commit`, `lang`, `topDocs` values printed in step 2, exactly as printed (`commit` may be `null`).
 
-## 1. 경로 정하기
+## 1. Resolve paths
 
-인자 = module id 또는 폴더 경로 (`<TARGET>`). 없으면 사용자에게 묻고 멈춘다.
+Argument = a module id or folder path (`<TARGET>`). If missing, ask the user and stop.
 
-`--out <dir>`이 있으면 그 값을 떼어 내 아래 명령의 마지막 인자로 넣는다 (없으면 빈 문자열 `""`). `docs-all`에 준 것과 같은 값이어야 같은 출력 폴더를 쓴다. 출력의 `REPO=`, `OUT=` 값을 이후 모든 명령과 프롬프트에 그대로 쓴다.
+Take `--lang <en|ko>` out of the arguments if present. If `--out <dir>` is present, take it out and pass its value as the last argument of the command below (otherwise an empty string `""`). It must be the same value given to `docs-all` to use the same output folder. Use the printed `REPO=` and `OUT=` values as they are in every later command and prompt.
 
 ```bash
-node -e 'const p=require("path"),f=s=>s.split(p.sep).join("/");let r;try{r=require("child_process").execFileSync("git",["rev-parse","--show-toplevel"],{stdio:["ignore","pipe","ignore"]}).toString().trim()}catch{r=process.cwd()}r=p.resolve(r);console.log("REPO="+f(r)+"\nOUT="+f(process.argv[1]?p.resolve(process.argv[1]):p.join(r,"docs","doc-forge")))' "<--out 값 또는 빈 문자열>"
+node -e 'const p=require("path"),f=s=>s.split(p.sep).join("/");let r;try{r=require("child_process").execFileSync("git",["rev-parse","--show-toplevel"],{stdio:["ignore","pipe","ignore"]}).toString().trim()}catch{r=process.cwd()}r=p.resolve(r);console.log("REPO="+f(r)+"\nOUT="+f(process.argv[1]?p.resolve(process.argv[1]):p.join(r,"docs","doc-forge")))' "<--out value or empty string>"
 ```
 
-## 2. scan과 COMMIT
+## 2. scan, COMMIT, LANG, TOP_DOCS
+
+Add `--lang <en|ko>` only when the user gave it (without it, scan keeps the previous run's language, default `en`):
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" >/dev/null && node -e 'console.log(JSON.stringify(require(process.argv[1]).commit))' "<OUT>/.doc-forge/manifest.json"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" [--lang <en|ko>] >/dev/null && node -e 'const m=require(process.argv[1]);console.log(JSON.stringify({commit:m.commit,lang:m.settings.lang,topDocs:m.topDocs}))' "<OUT>/.doc-forge/manifest.json"
 ```
 
-## 3. module 찾기 (아래 명령을 `module 조회`라 부른다)
+## 3. Find the module (the command below is called `module lookup`)
 
 ```bash
 node -e 'const p=require("path"),fs=require("fs"),[o,r,q]=process.argv.slice(1),m=require(p.join(o,".doc-forge","manifest.json"));let x=m.modules.find(x=>x.id===q);if(!x){const rs=[p.relative(r,p.resolve(q)).split(p.sep).join("/"),q.split(String.fromCharCode(92)).join("/").replace(/^\.\//,"")].map(s=>s.replace(/\/+$/,"")).filter(s=>s&&!s.startsWith(".."));const ids=[...new Set(m.files.filter(f=>rs.some(s=>f.path===s||f.path.startsWith(s+"/"))).map(f=>f.module))];if(ids.length>1){console.log(JSON.stringify({module:null,spans:ids}));process.exit()}x=m.modules.find(y=>y.id===ids[0])}if(!x){const L=(a,b)=>{let v=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(v[j]+1,c[j-1]+1,v[j-1]+(a[i-1]===b[j-1]?0:1));v=c}return v[b.length]},s=y=>y.toLowerCase().includes(q.toLowerCase())?0:L(q.toLowerCase(),y.toLowerCase());console.log(JSON.stringify({module:null,candidates:m.modules.map(y=>[s(y.id),y.id]).sort((a,b)=>a[0]-b[0]).slice(0,3).map(y=>y[1])}));process.exit()}const e=m.files.filter(f=>f.module===x.id&&f.kind!=="doc"&&f.kind!=="data").map(f=>f.doc);console.log(JSON.stringify({module:x.id,doc:x.doc,batches:m.batches.filter(b=>b.module===x.id).map(b=>b.id),data:m.files.filter(f=>f.module===x.id&&f.kind==="data").map(f=>f.path),fileDocs:e.filter(d=>fs.existsSync(p.join(o,d))),missing:e.filter(d=>!fs.existsSync(p.join(o,d)))}))' "<OUT>" "<REPO>" "<TARGET>"
 ```
 
-- `module`이 있으면: `MODULE` = `module`, `MODULE_DOC` = `doc`, `BATCH_IDS` = `batches`, `DATA_FILES` = `data`.
-- `spans`가 나오면: 그 폴더가 여러 module에 걸친다고 알리고 module id 목록(최대 3개 + 나머지 개수)을 보여 준 뒤 멈춘다.
-- `candidates`가 나오면: 그런 module·폴더가 없다고 하고 비슷한 후보 최대 3개를 보여 준 뒤 멈춘다.
+- If `module` is set: `MODULE` = `module`, `MODULE_DOC` = `doc`, `BATCH_IDS` = `batches`, `DATA_FILES` = `data`.
+- If `spans` is printed: say the folder spans several modules, show the module ids (at most 3, plus how many more), and stop.
+- If `candidates` is printed: say there is no such module or folder, show up to 3 similar candidates, and stop.
 
-## 4. 파일 문서 (file-documenter)
+## 4. File docs (file-documenter)
 
-`BATCH_IDS` 전부를 (status와 상관없이) 5개씩 wave로. wave마다:
+All of `BATCH_IDS` (whatever their status), in waves of 5. For each wave:
 
 1. ```bash
    for i in <id1> <id2> <id3> <id4> <id5>; do node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" batch "<REPO>" --out "<OUT>" --id $i; done
    ```
-2. batch마다 Agent 호출 (`subagent_type: "doc-forge:file-documenter"`, `description: "batch <id> 문서화"`). 프롬프트 = 공통 입력 블록 + `BATCH: <그 batch 출력 JSON 그대로>`.
-3. 답이 `batch <id>: <n>개 완료`이고 `(실패:`가 없으면 done, 아니면 failed.
-4. wave가 끝나면 Bash 하나로 순서대로: `node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" status "<REPO>" --out "<OUT>" --id <id> --set done|failed; …`
+2. One Agent call per batch (`subagent_type: "doc-forge:file-documenter"`, `description: "document batch <id>"`). Prompt = common input block + `BATCH: <that batch's output JSON, as is>`.
+3. If the answer is `batch <id>: <n> done` without `(failed:`, the batch is done; otherwise failed.
+4. When the wave is over, in one Bash call, in order: `node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" status "<REPO>" --out "<OUT>" --id <id> --set done|failed; …`
 
-`BATCH_IDS`가 비어 있으면 (문서·데이터 파일만 있는 module) 이 단계를 건너뛴다.
+If `BATCH_IDS` is empty (a module with only doc and data files), skip this step.
 
-## 5. module 문서 (module-synthesizer)
+## 5. Module doc (module-synthesizer)
 
-Agent 호출 (`subagent_type: "doc-forge:module-synthesizer"`, `description: "module 문서화"`). 프롬프트 = 공통 입력 블록 +
+Agent call (`subagent_type: "doc-forge:module-synthesizer"`, `description: "document module"`). Prompt = common input block +
 
 ```
 MODULE: <MODULE>
 MODULE_DOC: <MODULE_DOC>
-BATCH_IDS: <BATCH_IDS JSON 배열>
-DATA_FILES: <DATA_FILES JSON 배열>
+BATCH_IDS: <BATCH_IDS JSON array>
+DATA_FILES: <DATA_FILES JSON array>
 ```
 
-## 6. 검증 (module 전체)과 한 번 수정
+## 6. Verification (whole module) and one round of fixes
 
-1. `module 조회`를 `<TARGET>` 대신 `<MODULE>`로 다시 돌려 지금 존재하는 `fileDocs`를 얻는다.
-2. `DOCS 전체` = `[MODULE_DOC]` + `fileDocs`. 15개 이하 조각으로 나눠, 조각마다 Agent 호출 (`subagent_type: "doc-forge:verifier"`, `description: "module 검증 <n>"`), 프롬프트 = 공통 입력 블록 + `DOCS: <조각 JSON 배열>`. wave당 5개.
-3. 각 답에서 ``` 울타리를 걷고 JSON 배열로 파싱한다. 파싱 실패는 "verifier output unparseable"로 보고에만 넣는다. `problem`이 `검색 범위 초과:`로 시작하는 지적도 보고에만.
-4. 남은 지적을 나눠 한 번만 수정한다 (wave당 5개, 다시 검증하지 않음):
-   - `03_files/...` → batch별로 묶는다:
+1. Run `module lookup` again with `<MODULE>` instead of `<TARGET>` to get the `fileDocs` that exist now.
+2. `ALL_DOCS` = `[MODULE_DOC]` + `fileDocs`. Split into chunks of 15 or fewer; one Agent call per chunk (`subagent_type: "doc-forge:verifier"`, `description: "verify module <n>"`), prompt = common input block + `DOCS: <chunk JSON array>`. 5 per wave.
+3. Strip ``` fences from each answer and parse it as a JSON array. A parse failure goes into the report only, as "verifier output unparseable". Findings whose `problem` starts with `search limit exceeded:` go into the report only too.
+4. Split the remaining findings and fix them once (5 per wave, no re-verification):
+   - `03_files/...` → group by batch:
      ```bash
      node -e 'const p=require("path"),[o,...ds]=process.argv.slice(1),m=require(p.join(o,".doc-forge","manifest.json")),r={};for(const d of ds){const x=m.files.find(x=>x.doc===d||x.path===d),b=x&&m.batches.find(b=>b.files.includes(x.path));(r[b?b.id:"none"]??=[]).push(d)}console.log(JSON.stringify(r))' "<OUT>" "<doc1>" "<doc2>"
      ```
-     batch마다 file-documenter: 공통 입력 블록 + `BATCH: <batch --id N 출력 JSON, 4단계 1번 명령으로 뽑음>` + `FINDINGS: <그 batch 문서들의 지적 JSON 배열>`.
-   - `MODULE_DOC` → module-synthesizer: 5단계 변수 4개 + `FINDINGS: <지적 JSON 배열>`.
+     One file-documenter per batch: common input block + `BATCH: <JSON printed by batch --id N, via the step 4.1 command>` + `FINDINGS: <JSON array of the findings for that batch's docs>`.
+   - `MODULE_DOC` → module-synthesizer: the 4 variables of step 5 + `FINDINGS: <JSON array of findings>`.
 
-## 7. check와 한 번 재처리
+## 7. check and one round of reprocessing
 
-`module 조회`를 `<MODULE>`로 다시 돌려 `fileDocs`를 얻는다. `ONLY` = `MODULE_DOC`(있을 때) + `fileDocs`를 쉼표로 이은 문자열.
+Run `module lookup` again with `<MODULE>` to get `fileDocs`. `ONLY` = `MODULE_DOC` (if it exists) + `fileDocs`, joined with commas.
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" check "<REPO>" --out "<OUT>" --only "<ONLY>"
 ```
 
-`--only`는 누락 검사를 하지 않으므로, 빠진 문서는 `module 조회`의 `missing`(없는 파일 문서)과 `MODULE_DOC` 존재 여부(Glob)로 판단한다.
+`--only` skips the coverage check, so judge missing docs from `module lookup`'s `missing` (missing file docs) and whether `MODULE_DOC` exists (Glob).
 
-문제가 있으면 **한 번만** 재처리한다 (wave당 5개):
+If there are problems, reprocess **once** (5 per wave):
 
-- 빠진 파일 문서 → 그 batch를 4단계처럼 다시 실행하고 status 기록. 빠진 module 문서 → 5단계 다시 실행.
-- `brokenRefs`·`brokenLinks`·`leaks` → 지적으로 바꿔 (brokenRef → `{"doc":"<doc>","sentence":"근거 `<ref>`가 있는 문장","problem":"깨진 근거(<reason>): 실제 파일·줄 범위로 고치거나 근거를 지울 것","evidence":""}`, leak → `{"doc":"<doc>","sentence":"<line>번째 줄","problem":"비밀 값 유출 의심(<type> <pattern>): 값을 ***로 바꿀 것","evidence":""}`, brokenLink → `{"doc":"<doc>","sentence":"링크 `<link>`","problem":"링크 대상 없음 (<line>번째 줄): doc-style §7대로 대상 문서 경로는 manifest `doc`에서, 상대 경로는 `up`이나 `link` 명령으로 다시 만들 것. 문서가 없는 파일이면 링크 대신 백틱 경로로 쓸 것","evidence":""}`) 6단계 4번 규칙대로 쓴 역할에게 수정 실행.
+- Missing file docs → rerun that batch as in step 4 and record its status. Missing module doc → rerun step 5.
+- `brokenRefs`, `brokenLinks`, `leaks` → turn them into findings (brokenRef → `{"doc":"<doc>","sentence":"the sentence with citation `<ref>`","problem":"broken citation (<reason>): fix it to a real file and line range, or remove the citation","evidence":""}`, leak → `{"doc":"<doc>","sentence":"line <line>","problem":"suspected secret leak (<type> <pattern>): replace the value with ***","evidence":""}`, brokenLink → `{"doc":"<doc>","sentence":"link `<link>`","problem":"link target missing (line <line>): per doc-style §7, take the target doc path from the manifest `doc` and build the relative path with `up` or the `link` command. If the file has no doc, write a backticked path instead of a link","evidence":""}`) and run fix runs for the writer by the rules of step 6.4.
 
-그다음 `module 조회`와 check를 한 번 더 돌린다. 남은 문제는 보고에 넣는다.
+Then run `module lookup` and check once more. Put whatever remains in the report.
 
-## 8. 보고 (한국어)
+## 8. Report
 
-- module 문서: `<OUT>/<MODULE_DOC>`, 파일 문서 수 (`fileDocs` 개수 / 대상 수)
-- 검증: 지적 수, 수정으로 넘긴 수
-- check 결과(깨진 근거·깨진 링크·유출 의심 개수)와 추정 비율 (`estimates.ratio`를 %로)
-- 남은 문제: failed batch, check에 남은 항목, `검색 범위 초과`, 파싱 실패. 없으면 "없음"
-- 개요·아키텍처는 바뀌지 않았으니 전체를 맞추려면 `/doc-forge:docs-all`을 쓰라고 안내
+- Module doc: `<OUT>/<MODULE_DOC>`, number of file docs (`fileDocs` count / target count)
+- Verification: number of findings, how many were passed on for fixing
+- check result (broken citations, broken links, suspected leaks) and the estimate ratio (`estimates.ratio` as %)
+- Remaining problems: failed batches, items left in check, `search limit exceeded`, parse failures. "None" if none
+- Note that the overview and architecture were not changed; suggest `/doc-forge:docs-all` to bring everything in line

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SECRET_FILE_PATTERNS } from './inventory.mjs';
+import { SECRET_FILE_PATTERNS, LANG_CODES } from './inventory.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TEMPLATES = ['overview', 'architecture', 'module', 'file', 'file-short', 'test', 'flow'];
@@ -36,7 +36,7 @@ test('every skill has frontmatter name == folder and a description', () => {
 });
 
 test('frontmatter values parse as YAML: unquoted values have no ": "', () => {
-  // Claude Code drops every frontmatter field when YAML fails; an unquoted "예: x" is such a failure
+  // Claude Code drops every frontmatter field when YAML fails; an unquoted "e.g.: x" is such a failure
   for (const f of [...skills(), ...agents()]) {
     for (const [k, v] of Object.entries(parse(f.rel).meta)) {
       if (/^["']/.test(v)) continue;
@@ -86,10 +86,14 @@ test('doc-style §3 Grep glob lists exactly the secret file patterns of inventor
   for (const p of SECRET_FILE_PATTERNS) assert.ok(alts.includes(p), `glob lacks ${p} as written`);
 });
 
-test('doc-style references all 7 templates', () => {
+test('doc-style references all 7 templates; each exists in every output language with the same headings', () => {
   const { body } = parse('skills/doc-style/SKILL.md');
+  const headings = rel => fs.readFileSync(path.join(ROOT, ...rel.split('/')), 'utf8').split(String.fromCharCode(10)).filter(l => /^#{2,} /.test(l)).map(l => l.match(/^#+/)[0]);
   for (const t of TEMPLATES) {
-    assert.ok(body.includes(`templates/${t}.md`), `SKILL.md does not mention templates/${t}.md`);
-    assert.ok(exists(`skills/doc-style/templates/${t}.md`), `templates/${t}.md missing`);
+    assert.ok(body.includes(`templates/<LANG>/${t}.md`), `SKILL.md does not mention templates/<LANG>/${t}.md`);
+    for (const lang of LANG_CODES) assert.ok(exists(`skills/doc-style/templates/${lang}/${t}.md`), `templates/${lang}/${t}.md missing`);
+    const [first, ...rest] = LANG_CODES.map(lang => headings(`skills/doc-style/templates/${lang}/${t}.md`));
+    for (const h of rest) assert.deepEqual(h, first, `templates/*/${t}.md: section structure differs between languages`);
   }
+  assert.deepEqual(list('skills/doc-style/templates').sort(), [...LANG_CODES].sort(), 'templates/ holds only one folder per language');
 });

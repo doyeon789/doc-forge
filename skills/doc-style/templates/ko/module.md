@@ -1,7 +1,7 @@
 # module `<module id>`
 
 > 기준: <hash 앞 7자리>[ (커밋 안 된 변경 포함)]
-> [개요](../00_개요.md) · [아키텍처](../01_아키텍처.md)
+> [개요](../<TOP_DOCS.overview>) · [아키텍처](../<TOP_DOCS.architecture>)
 
 ## 한 줄 요약
 이 module이 시스템에서 맡은 책임 한 문장.

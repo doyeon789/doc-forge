@@ -1,7 +1,7 @@
 # `<레포 기준 테스트 파일 경로>`
 
 > 기준: <hash 앞 7자리>[ (커밋 안 된 변경 포함)]
-> 소속: [module <module id>](<up>/<moduleDoc>) · [아키텍처](<up>/01_아키텍처.md)
+> 소속: [module <module id>](<up>/<moduleDoc>) · [아키텍처](<up>/<TOP_DOCS.architecture>)
 
 ## 무엇을 검증하는가
 이 테스트가 지키는 동작·규칙을 2~4줄로.

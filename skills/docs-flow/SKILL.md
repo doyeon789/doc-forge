@@ -1,21 +1,21 @@
 ---
 name: docs-flow
-description: '기능 하나(예: 로그인, 주문 생성)를 시작 지점부터 호출을 따라가며 단계별로 설명하는 흐름 문서(04_flows/<기능>.md, Mermaid 순서도 포함)를 만든다. "이 기능 흐름 문서화", "로그인 흐름 설명 문서", "요청이 어떻게 처리되는지 문서로", "trace this feature" 같은 요청에 사용.'
-argument-hint: "\"<기능 설명>\" [--out <dir>]"
+description: Writes a flow doc (04_flows/<feature>.md, with a Mermaid sequence diagram) that follows one feature, such as login or order creation, from its entry point through the call chain step by step; in English by default or Korean with --lang ko. Use for requests like "document this feature's flow", "explain how the login flow works", "trace this feature", "how is this request handled".
+argument-hint: "\"<feature description>\" [--lang en|ko] [--out <dir>]"
 ---
 
-# /doc-forge:docs-flow — 기능 흐름 문서화
+# /doc-forge:docs-flow — document a feature flow
 
-메인 대화에서 실행하는 지휘 절차다. 문서는 직접 쓰지 않는다. 사용자에게 하는 말은 한국어로 한다.
+A conducting procedure that runs in the main conversation. It never writes docs itself. Talk to the user in the language they are using.
 
-## 고정 규칙
+## Fixed rules
 
-- 모든 경로는 큰따옴표로 감싼다. `<REPO>` 등 꺾쇠 자리는 실제 값으로 바꾼다.
-- 이 명령은 `04_flows/<기능 이름>.md` 하나만 쓴다. manifest가 이미 있으면 scan하지 않는다.
-- 비밀 값은 어떤 프롬프트·보고에도 넣지 않는다.
-- `inventory.mjs` 종료 코드: 0 성공, `check`는 문제 있으면 1 (JSON 유효), 2는 사용법 오류(stderr).
+- Wrap every path in double quotes. Replace angle-bracket slots such as `<REPO>` with the real values.
+- This command writes only one doc, `04_flows/<feature name>.md`. If a manifest already exists and no `--lang` was given, it does not scan.
+- Never put secret values into any prompt or report.
+- `inventory.mjs` exit codes: 0 success; `check` exits 1 when it finds problems (JSON still valid); 2 is a usage error (stderr).
 
-## Agent 공통 입력 블록
+## Common agent input block
 
 ```
 REPO: <REPO>
@@ -23,66 +23,68 @@ OUT: <OUT>
 STYLE: ${CLAUDE_PLUGIN_ROOT}/skills/doc-style
 INVENTORY: ${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs
 COMMIT: <COMMIT>
+LANG: <LANG>
+TOP_DOCS: <TOP_DOCS>
 ```
 
-`<COMMIT>`은 manifest의 `commit` 값을 JSON 그대로 (`null` 가능).
+`<COMMIT>`, `<LANG>`, `<TOP_DOCS>` are the `commit`, `lang`, `topDocs` values printed in step 2, exactly as printed (`commit` may be `null`).
 
-## 1. 경로와 기능
+## 1. Paths and feature
 
-`--out <dir>`을 뗀 나머지 인자 전체(감싼 따옴표는 뗀다) = `FEATURE`. 비어 있으면 어떤 기능을 따라갈지 사용자에게 묻고 멈춘다.
+Take `--lang <en|ko>` and `--out <dir>` out of the arguments; everything else (without surrounding quotes) = `FEATURE`. If it is empty, ask the user which feature to trace and stop.
 
-`--out <dir>`이 있으면 그 값을 떼어 내 아래 명령의 마지막 인자로 넣는다 (없으면 빈 문자열 `""`). `docs-all`에 준 것과 같은 값이어야 같은 출력 폴더를 쓴다. 출력의 `REPO=`, `OUT=` 값을 이후 모든 명령과 프롬프트에 그대로 쓴다.
+If `--out <dir>` is present, pass its value as the last argument of the command below (otherwise an empty string `""`). It must be the same value given to `docs-all` to use the same output folder. Use the printed `REPO=` and `OUT=` values as they are in every later command and prompt.
 
 ```bash
-node -e 'const p=require("path"),f=s=>s.split(p.sep).join("/");let r;try{r=require("child_process").execFileSync("git",["rev-parse","--show-toplevel"],{stdio:["ignore","pipe","ignore"]}).toString().trim()}catch{r=process.cwd()}r=p.resolve(r);console.log("REPO="+f(r)+"\nOUT="+f(process.argv[1]?p.resolve(process.argv[1]):p.join(r,"docs","doc-forge")))' "<--out 값 또는 빈 문자열>"
+node -e 'const p=require("path"),f=s=>s.split(p.sep).join("/");let r;try{r=require("child_process").execFileSync("git",["rev-parse","--show-toplevel"],{stdio:["ignore","pipe","ignore"]}).toString().trim()}catch{r=process.cwd()}r=p.resolve(r);console.log("REPO="+f(r)+"\nOUT="+f(process.argv[1]?p.resolve(process.argv[1]):p.join(r,"docs","doc-forge")))' "<--out value or empty string>"
 ```
 
-## 2. manifest와 COMMIT
+## 2. Manifest, COMMIT, LANG, TOP_DOCS
 
-Glob으로 `<OUT>/.doc-forge/manifest.json`이 있는지 본다. 없을 때만:
+Check with Glob whether `<OUT>/.doc-forge/manifest.json` exists. Scan only if it does not exist, or if the user gave `--lang` (add `--lang <en|ko>` only then):
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" >/dev/null
+node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" scan "<REPO>" --out "<OUT>" [--lang <en|ko>] >/dev/null
 ```
 
-그다음:
+Then:
 
 ```bash
-node -e 'console.log(JSON.stringify(require(process.argv[1]).commit))' "<OUT>/.doc-forge/manifest.json"
+node -e 'const m=require(process.argv[1]);console.log(JSON.stringify({commit:m.commit,lang:m.settings.lang,topDocs:m.topDocs}))' "<OUT>/.doc-forge/manifest.json"
 ```
 
-출력 한 줄이 `<COMMIT>`이다.
+The one output line gives `<COMMIT>` (`commit`), `<LANG>` (`lang`) and `<TOP_DOCS>` (`topDocs`). If `lang` or `topDocs` is missing (a manifest from an older doc-forge), run the scan above once and print again.
 
-## 3. 흐름 추적 (flow-tracer)
+## 3. Trace the flow (flow-tracer)
 
-Agent 호출 (`subagent_type: "doc-forge:flow-tracer"`, `description: "흐름 추적"`). 프롬프트 = 공통 입력 블록 +
+Agent call (`subagent_type: "doc-forge:flow-tracer"`, `description: "trace flow"`). Prompt = common input block +
 
 ```
 FEATURE: <FEATURE>
-시작 지점을 찾지 못하면 문서를 쓰지 말고 `flow 없음: <이유>` 한 줄로 답한다.
+If you cannot find an entry point, do not write a doc; answer with the single line `no flow: <reason>`.
 ```
 
-- 답이 `flow <기능 이름>: 04_flows/<기능 이름>.md`이고 그 파일이 Glob으로 있으면: `DOC` = `04_flows/<기능 이름>.md`.
-- `flow 없음`이거나 문서가 없으면: 그 기능을 찾지 못했다고 알리고, 후보를 최대 3개 보여 준 뒤 멈춘다. 후보는 manifest에서 찾는다: `FEATURE`의 핵심 단어(영어 식별자로도 바꿔 본다, 예: 로그인 → login, auth)로 `<OUT>/.doc-forge/manifest.json`을 Grep (`"path": ".*<단어>`, 정규식 특수문자는 `\`로 이스케이프, `head_limit: 3`)한 경로와, 이미 있는 `<OUT>/04_flows/*.md` 이름.
+- If the answer is `flow <feature name>: 04_flows/<feature name>.md` and that file exists (Glob): `DOC` = `04_flows/<feature name>.md`.
+- If the answer is `no flow` or the doc is missing: tell the user the feature was not found, show up to 3 candidates, and stop. Find candidates in the manifest: Grep `<OUT>/.doc-forge/manifest.json` for the key words of `FEATURE` (if they are not English, also try them as English identifiers, e.g. login, auth) as `"path": ".*<word>` (regex special characters escaped with `\`, `head_limit: 3`), plus the names of existing `<OUT>/04_flows/*.md`.
 
-## 4. 검증과 한 번 수정
+## 4. Verification and one round of fixes
 
-1. Agent 호출 (`subagent_type: "doc-forge:verifier"`, `description: "흐름 문서 검증"`). 프롬프트 = 공통 입력 블록 + `DOCS: ["<DOC>"]`.
-2. 답에서 ``` 울타리를 걷고 JSON 배열로 파싱한다. 파싱이 안 되면 "verifier output unparseable"을 보고에 넣고 수정은 건너뛴다. `problem`이 `검색 범위 초과:`로 시작하는 지적은 보고에만.
-3. 남은 지적이 있으면 flow-tracer를 한 번 더 부른다: 공통 입력 블록 + `FEATURE: <FEATURE>` + `FINDINGS: <지적 JSON 배열>`. 다시 검증하지 않는다.
+1. Agent call (`subagent_type: "doc-forge:verifier"`, `description: "verify flow doc"`). Prompt = common input block + `DOCS: ["<DOC>"]`.
+2. Strip ``` fences from the answer and parse it as a JSON array. If it does not parse, put "verifier output unparseable" in the report and skip the fix. Findings whose `problem` starts with `search limit exceeded:` go into the report only.
+3. If findings remain, call flow-tracer once more: common input block + `FEATURE: <FEATURE>` + `FINDINGS: <JSON array of findings>`. Do not verify again.
 
-## 5. check와 한 번 재처리
+## 5. check and one round of reprocessing
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/inventory.mjs" check "<REPO>" --out "<OUT>" --only "<DOC>"
 ```
 
-`ok`가 false면 `brokenRefs`·`brokenLinks`·`leaks`를 지적으로 바꿔 (brokenRef → `{"doc":"<doc>","sentence":"근거 `<ref>`가 있는 문장","problem":"깨진 근거(<reason>): 실제 파일·줄 범위로 고치거나 근거를 지울 것","evidence":""}`, leak → `{"doc":"<doc>","sentence":"<line>번째 줄","problem":"비밀 값 유출 의심(<type> <pattern>): 값을 ***로 바꿀 것","evidence":""}`, brokenLink → `{"doc":"<doc>","sentence":"링크 `<link>`","problem":"링크 대상 없음 (<line>번째 줄): doc-style §7대로 대상 문서 경로는 manifest `doc`에서, 상대 경로는 `up`이나 `link` 명령으로 다시 만들 것. 문서가 없는 파일이면 링크 대신 백틱 경로로 쓸 것","evidence":""}`) flow-tracer 수정 실행(`FEATURE` + `FINDINGS`)을 한 번 하고 check를 다시 돌린다. 남은 문제는 보고에 넣는다.
+If `ok` is false, turn `brokenRefs`, `brokenLinks` and `leaks` into findings (brokenRef → `{"doc":"<doc>","sentence":"the sentence with citation `<ref>`","problem":"broken citation (<reason>): fix it to a real file and line range, or remove the citation","evidence":""}`, leak → `{"doc":"<doc>","sentence":"line <line>","problem":"suspected secret leak (<type> <pattern>): replace the value with ***","evidence":""}`, brokenLink → `{"doc":"<doc>","sentence":"link `<link>`","problem":"link target missing (line <line>): per doc-style §7, take the target doc path from the manifest `doc` and build the relative path with `up` or the `link` command. If the file has no doc, write a backticked path instead of a link","evidence":""}`), run one flow-tracer fix run (`FEATURE` + `FINDINGS`), and run check again. Put whatever remains in the report.
 
-## 6. 보고 (한국어)
+## 6. Report
 
-- 흐름 문서: `<OUT>/<DOC>`
-- 검증: 지적 수, 수정 여부
-- check 결과(깨진 근거·깨진 링크·유출 의심 개수)와 추정 비율 (`estimates.ratio`를 %로)
-- 남은 문제 (없으면 "없음")
-- manifest가 오래됐을 수 있으면 (이번에 scan하지 않았으면) 코드가 바뀐 뒤라면 `/doc-forge:docs-all`로 manifest를 새로 만들 수 있다고 한 줄 안내
+- Flow doc: `<OUT>/<DOC>`
+- Verification: number of findings, whether fixed
+- check result (broken citations, broken links, suspected leaks) and the estimate ratio (`estimates.ratio` as %)
+- Remaining problems ("None" if none)
+- If the manifest may be stale (no scan this time), add one line: after code changes, `/doc-forge:docs-all` rebuilds the manifest

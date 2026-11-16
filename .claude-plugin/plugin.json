@@ -1,7 +1,7 @@
 {
   "name": "doc-forge",
   "version": "0.1.0",
-  "description": "문서 없는 레포를 전부 읽고 개요·아키텍처·module·파일·흐름 문서를 만드는 플러그인",
+  "description": "Reads an undocumented repo end to end and writes overview, architecture, module, file and flow docs with code citations",
   "author": {
     "name": "doyeon789",
     "url": "https://github.com/doyeon789"
