@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { countLines, classify, listFiles, assignModules, moduleDocPath, fileDocPath, makeBatches, scan, setStatus, extractKeys, check, sample, prune } from './inventory.mjs';
+import { countLines, classify, listFiles, assignModules, moduleDocPath, fileDocPath, makeBatches, scan, setStatus, extractKeys, check, sample, prune, topDocs } from './inventory.mjs';
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 
@@ -213,7 +213,7 @@ test('extractKeys masks values in all formats', () => {
   assert.equal(props.trim(), 'jwt.secret=***');
   const json = extractKeys('secrets.json', '{"api":{"key":"zzzzzz","n":3}}');
   assert.deepEqual(JSON.parse(json), { api: { key: '***', n: '***' } });
-  assert.equal(extractKeys('server.pem', '-----BEGIN PRIVATE KEY-----\nAAA\n'), '(키 파일: 내용 비공개)');
+  assert.equal(extractKeys('server.pem', '-----BEGIN PRIVATE KEY-----\nAAA\n'), '(key file: contents hidden)');
 });
 test('CLI keys refuses paths outside repo', () => {
   assert.throws(() => run(['keys', process.cwd(), '../outside.env']));
@@ -221,8 +221,8 @@ test('CLI keys refuses paths outside repo', () => {
 test('extractKeys masks YAML lists, block scalars, bad JSON, properties forms', () => {
   const y = extractKeys('c.yaml', 'a:\n  - one1\n  - k: two2\n  pem: |\n    LINE-secret\n    more-secret\n  next: v3\n# c\n');
   assert.equal(y, 'a:\n  - ***\n  - k: ***\n  pem: ***\n  next: ***\n# c\n');
-  assert.equal(extractKeys('x.json', '{bad secret'), '(형식 미지원: 내용 비공개)');
-  assert.equal(extractKeys('x.toml', 'a=secret'), '(형식 미지원: 내용 비공개)');
+  assert.equal(extractKeys('x.json', '{bad secret'), '(unsupported format: contents hidden)');
+  assert.equal(extractKeys('x.toml', 'a=secret'), '(unsupported format: contents hidden)');
   assert.equal(extractKeys('a.properties', 'k: v1\nk2 v2\n').trim(), 'k: ***\nk2 ***');
 });
 test('CLI keys skips option values when picking the file argument', async () => {
@@ -482,4 +482,38 @@ test('CLI link prints the relative link between two OUT-relative docs', async ()
   await put(repo, '02_modules/a.md', `[b](${link('02_modules/a.md', '03_files/lib/한글 폴더/b c.js.md')})\n`);
   run(['scan', repo]);
   assert.deepEqual((await check(repo, { only: ['02_modules/a.md'] })).brokenLinks, []);
+});
+
+test('topDocs: top-level doc names per language', () => {
+  assert.deepEqual(topDocs('en'), { overview: '00_overview.md', architecture: '01_architecture.md' });
+  assert.deepEqual(topDocs('ko'), { overview: '00_개요.md', architecture: '01_아키텍처.md' });
+  assert.throws(() => topDocs('fr'));
+});
+test('scan stores settings.lang (default en), reuses it, --fresh keeps it unless lang given', async () => {
+  const repo = await makeRepo({ 'a/x.js': '1' });
+  const m1 = await scan(repo, {});
+  assert.equal(m1.settings.lang, 'en'); assert.deepEqual(m1.topDocs, topDocs('en'));
+  assert.equal((await scan(repo, { lang: 'ko' })).settings.lang, 'ko');
+  assert.equal((await scan(repo, {})).settings.lang, 'ko');
+  const m4 = await scan(repo, { fresh: true });
+  assert.equal(m4.settings.lang, 'ko'); assert.deepEqual(m4.topDocs, topDocs('ko'));
+  assert.equal((await scan(repo, { fresh: true, lang: 'en' })).settings.lang, 'en');
+  await assert.rejects(scan(repo, { lang: 'fr' }));
+});
+test('CLI scan --lang: invalid exits 2; batch prints lang and topDocs', async () => {
+  const repo = await makeRepo({ 'a/x.js': '1' });
+  const code = args => { try { run(args); return 0; } catch (e) { return e.status; } };
+  assert.equal(code(['scan', repo, '--lang', 'fr']), 2);
+  assert.equal(code(['scan', repo, '--lang']), 2);
+  run(['scan', repo, '--lang', 'ko']);
+  const b = JSON.parse(run(['batch', repo, '--id', '1']));
+  assert.equal(b.lang, 'ko'); assert.deepEqual(b.topDocs, topDocs('ko'));
+  run(['scan', repo]);
+  assert.equal(JSON.parse(run(['batch', repo, '--id', '1'])).lang, 'ko');
+});
+test('check: counts both estimate markers (Assumption: and 추정:)', async () => {
+  const repo = await docsRepo();
+  await put(repo, '01_architecture.md', 'a (`src/a.js:1`)\nAssumption: b\n추정: c\nAssumption: d\n');
+  const r = await check(repo, {});
+  assert.deepEqual(r.estimates, { confirmed: 1, estimated: 3, ratio: 3 / 4 });
 });

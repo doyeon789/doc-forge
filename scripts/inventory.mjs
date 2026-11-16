@@ -6,6 +6,18 @@ import { pathToFileURL } from 'node:url';
 
 export const DEFAULTS = { maxLines: 2500, maxFiles: 25, moduleSplitThreshold: 40, sampleRate: 0.2 };
 
+// Output language: top-level doc names and the estimate marker (doc-style "Output language").
+const TOP_DOCS = {
+  en: { overview: '00_overview.md', architecture: '01_architecture.md' },
+  ko: { overview: '00_개요.md', architecture: '01_아키텍처.md' },
+};
+export const LANG_CODES = Object.keys(TOP_DOCS);
+export const ESTIMATE_MARKERS = ['Assumption:', '추정:'];
+export function topDocs(lang) {
+  if (!TOP_DOCS[lang]) throw new Error(`--lang must be one of: ${LANG_CODES.join(', ')}`);
+  return { ...TOP_DOCS[lang] };
+}
+
 export function countLines(text) {
   if (text === '') return 0;
   const parts = text.split(/\r\n|\r|\n/);
@@ -194,7 +206,8 @@ export function makeBatches(entries, { maxLines = DEFAULTS.maxLines, maxFiles = 
 const manifestPath = out => path.join(out, '.doc-forge', 'manifest.json');
 const resolveOut = (repo, out) => path.resolve(out ?? path.join(repo, 'docs', 'doc-forge'));
 
-export async function scan(repo, { out, fresh } = {}) {
+export async function scan(repo, { out, fresh, lang } = {}) {
+  if (lang !== undefined) topDocs(lang); // validate before touching anything
   repo = path.resolve(repo);
   out = resolveOut(repo, out);
   let outRel = path.relative(repo, out).split(path.sep).join('/').replace(/\/+$/, '');
@@ -217,6 +230,7 @@ export async function scan(repo, { out, fresh } = {}) {
 
   const batches = makeBatches(entries);
   const prev = await fs.readFile(manifestPath(out), 'utf8').then(JSON.parse, () => null);
+  lang ??= TOP_DOCS[prev?.settings?.lang] ? prev.settings.lang : 'en';
   if (!fresh) {
     const done = new Map((prev?.batches ?? []).map(b => [b.fingerprint, b.status]));
     for (const b of batches) b.status = done.get(b.fingerprint) ?? 'pending';
@@ -231,7 +245,7 @@ export async function scan(repo, { out, fresh } = {}) {
     commit = { hash, dirty };
   } catch { /* not a git repo, or no commits */ }
 
-  const manifest = { version: 1, repo, generatedAt: new Date().toISOString(), commit, settings: DEFAULTS, files: entries, excluded, modules, batches };
+  const manifest = { version: 1, repo, generatedAt: new Date().toISOString(), commit, settings: { ...DEFAULTS, lang }, topDocs: topDocs(lang), files: entries, excluded, modules, batches };
   await fs.mkdir(path.dirname(manifestPath(out)), { recursive: true });
   await fs.writeFile(manifestPath(out), JSON.stringify(manifest, null, 2));
   return manifest;
@@ -263,7 +277,7 @@ export async function setStatus(out, id, status) {
   await fs.writeFile(manifestPath(out), JSON.stringify(m, null, 2));
 }
 
-const UNSUPPORTED = '(형식 미지원: 내용 비공개)';
+const UNSUPPORTED = '(unsupported format: contents hidden)';
 
 // Masks every value; only key names/structure survive. Line-based, so exotic syntax degrades to '***', never to a leak.
 export function extractKeys(relPath, text) {
@@ -278,7 +292,7 @@ export function extractKeys(relPath, text) {
   const endsBs = l => l.charCodeAt(l.length - 1) === BS;
   const closesWith = (l, q) => l.length > 0 && l.endsWith(q) && l.charCodeAt(l.length - 2) !== BS;
   const unclosed = v => (/^["'`]/.test(v) && !(v.length >= 2 && closesWith(v, v[0])) ? v[0] : null);
-  if (['.pem', '.key', '.p12', '.jks'].includes(ext) || /^id_(rsa|dsa|ecdsa|ed25519)/.test(base)) return '(키 파일: 내용 비공개)';
+  if (['.pem', '.key', '.p12', '.jks'].includes(ext) || /^id_(rsa|dsa|ecdsa|ed25519)/.test(base)) return '(key file: contents hidden)';
   if (base === '.env' || base.startsWith('.env.') || ext === '.env') {
     let open = null; // quote char of a multi-line value
     const out = [];
@@ -495,7 +509,7 @@ export async function check(repo, { out, only } = {}) {
       const [, p, a, b] = m, from = Number(a), to = b === undefined ? from : Number(b);
       if (p.includes('://')) continue;
       const n = await linesOf(p);
-      // shortcut: '/'가 없는 존재하지 않는 경로(127.0.0.1:80 등)는 근거로 보지 않음, 루트 파일 오타를 놓치면 규칙 강화
+      // shortcut: a non-existent path without '/' (127.0.0.1:80 etc.) is not a citation; tighten if root-file typos slip through
       if (n === null && !p.includes('/')) continue;
       confirmed++;
       const ref = m[0].slice(1, -1);
@@ -506,7 +520,7 @@ export async function check(repo, { out, only } = {}) {
       const to = path.posix.normalize(path.posix.join(path.posix.dirname(doc), target));
       if (to.startsWith('../') || to === '..' || !await exists(to)) report.brokenLinks.push({ doc, line, link });
     }
-    estimated += text.split('추정:').length - 1;
+    for (const mk of ESTIMATE_MARKERS) estimated += text.split(mk).length - 1;
     leaksIn(doc, text);
   }
   // summaries feed module/architect agents: leak check only (no refs, links or coverage)
@@ -594,7 +608,11 @@ async function main(argv) {
       result = { link: relLink(from, to) };
       break;
     }
-    case 'scan': result = await scan(repo, { out, fresh: !!opt.fresh }); break;
+    case 'scan': {
+      if (opt.lang !== undefined && !LANG_CODES.includes(opt.lang)) usage(`scan: --lang must be one of: ${LANG_CODES.join(', ')}`);
+      result = await scan(repo, { out, fresh: !!opt.fresh, lang: opt.lang });
+      break;
+    }
     case 'check': {
       const only = typeof opt.only === 'string' ? opt.only.split(',').filter(Boolean) : undefined;
       result = await check(repo, { out, only }).catch(e => usage(e.message));
@@ -615,7 +633,8 @@ async function main(argv) {
       const b = m.batches.find(b => b.id === Number(opt.id));
       if (!b) usage(`unknown batch id: ${opt.id}`);
       const byPath = new Map(m.files.map(f => [f.path, f]));
-      result = { id: b.id, module: b.module, moduleDoc: moduleDocPath(b.module), large: b.large, files: b.files.map(p => {
+      const lang = m.settings?.lang ?? 'en';
+      result = { id: b.id, module: b.module, lang, topDocs: topDocs(lang), moduleDoc: moduleDocPath(b.module), large: b.large, files: b.files.map(p => {
         const f = byPath.get(p), doc = fileDocPath(p);
         return { path: p, doc, up: upOf(doc), kind: f.kind, lines: f.lines, secret: f.secret };
       }) };
