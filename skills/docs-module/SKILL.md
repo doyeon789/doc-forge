@@ -88,7 +88,7 @@ DATA_FILES: <DATA_FILES JSON array>
 
 1. Run `module lookup` again with `<MODULE>` instead of `<TARGET>` to get the `fileDocs` that exist now.
 2. `ALL_DOCS` = `[MODULE_DOC]` + `fileDocs`. Split into chunks of 15 or fewer; one Agent call per chunk (`subagent_type: "doc-forge:verifier"`, `description: "verify module <n>"`), prompt = common input block + `DOCS: <chunk JSON array>`. 5 per wave.
-3. Strip ``` fences from each answer and parse it as a JSON array. A parse failure goes into the report only, as "verifier output unparseable". Findings whose `problem` starts with `search limit exceeded:` go into the report only too.
+3. Take the text from the first `[` to the last `]` (the verifier sometimes adds prose before or after the JSON) and parse that as a JSON array. A parse failure goes into the report only, as "verifier output unparseable". Findings whose `problem` starts with `search limit exceeded:` go into the report only too.
 4. Split the remaining findings and fix them once (5 per wave, no re-verification):
    - `03_files/...` → group by batch:
      ```bash

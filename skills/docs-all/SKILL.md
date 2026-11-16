@@ -129,7 +129,7 @@ Chunks in waves of 5. One Agent call per chunk (`subagent_type: "doc-forge:verif
 DOCS: <JSON array of doc paths relative to OUT>
 ```
 
-Handling the answer: strip surrounding whitespace and ``` code fences and parse it as a JSON array. If it does not parse, record one finding `{"doc":"<first doc of the chunk>","problem":"verifier output unparseable"}` for that chunk; put it in the report only, never pass it on for fixing.
+Handling the answer: take the text from the first `[` to the last `]` (the verifier sometimes adds prose before or after the JSON) and parse that as a JSON array. If it does not parse, record one finding `{"doc":"<first doc of the chunk>","problem":"verifier output unparseable"}` for that chunk; put it in the report only, never pass it on for fixing.
 
 ### 7-3. A module whose sample got findings is verified in full
 

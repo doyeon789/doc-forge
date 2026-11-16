@@ -77,7 +77,7 @@ If the answer is not `batch 0: 1 done`, remember it as failed (step 6 checks).
 ## 5. Verification and one round of fixes
 
 1. Agent call (`subagent_type: "doc-forge:verifier"`, `description: "verify file doc"`). Prompt = common input block + `DOCS: ["<DOC>"]`.
-2. Strip ``` fences from the answer and parse it as a JSON array. If it does not parse, put "verifier output unparseable" in the report and skip the fix.
+2. Take the text from the first `[` to the last `]` (the verifier sometimes adds prose before or after the JSON) and parse that as a JSON array. If it does not parse, put "verifier output unparseable" in the report and skip the fix.
 3. Findings whose `problem` starts with `search limit exceeded:` go into the report only. If others remain, call file-documenter once more: common input block + `BATCH: <the same batch object>` + `FINDINGS: <JSON array of findings>`. Do not verify again.
 
 ## 6. check and one round of reprocessing
